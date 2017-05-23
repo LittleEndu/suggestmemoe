@@ -65,38 +65,44 @@ public interface DAO extends Closeable {
     @SqlUpdate("CREATE OR REPLACE VIEW v_animelist AS SELECT user_id, anime_id, given_score FROM animelist")
     void createAnimelistView();
 
-    @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS add_anime (IN in_id INT, IN in_name VARCHAR(255), IN in_score FLOAT UNSIGNED)" +
+    @SqlUpdate("DROP PROCEDURE IF EXISTS add_anime;" +
+            "CREATE PROCEDURE add_anime (IN in_id INT, IN in_name VARCHAR(255), IN in_score FLOAT UNSIGNED)" +
             "BEGIN" +
             "   INSERT INTO animes (id, name, score) VALUES (in_id, in_name, in_score)" +
             "   ON DUPLICATE KEY UPDATE score=in_score, last_updated=now(6);" +
             "END")
     void createAnimeAddingProcedure();
 
-    @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS update_last_recommended (IN in_id INT)" +
+    @SqlUpdate("DROP PROCEDURE IF EXISTS update_last_recommended;" +
+            "CREATE PROCEDURE update_last_recommended (IN in_id INT)" +
             "BEGIN" +
             "   UPDATE animes SET last_recommended = now(6) WHERE id=in_id;" +
             "END")
     void createAnimeUpdatingProcedure();
 
-    @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS add_recommendation (IN in_id1 INT, IN in_id2 INT)" +
+    @SqlUpdate("DROP PROCEDURE IF EXISTS add_recommendation;" +
+            "CREATE PROCEDURE add_recommendation (IN in_id1 INT, IN in_id2 INT)" +
             "BEGIN" +
             "   INSERT IGNORE INTO recommendations (id1, id2) VALUES (in_id1, in_id2);" +
             "END")
     void createRecommendationAddingProcedure();
 
-    @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS add_genre (IN in_anime_id INT, IN in_genre_id INT)" +
+    @SqlUpdate("DROP PROCEDURE IF EXISTS add_genre;" +
+            "CREATE PROCEDURE add_genre (IN in_anime_id INT, IN in_genre_id INT)" +
             "BEGIN" +
             "   INSERT IGNORE INTO genres (anime_id, genre_id) VALUES (in_anime_id, in_genre_id);" +
             "END")
     void createGenreAddingProcedure();
 
-    @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS add_user (IN in_name VARCHAR(255))" +
+    @SqlUpdate("DROP PROCEDURE IF EXISTS add_user;" +
+            "CREATE PROCEDURE add_user (IN in_name VARCHAR(255))" +
             "BEGIN" +
             "   INSERT IGNORE INTO users (name) VALUES (in_name);" +
             "END")
     void createUserAddingProcedure();
 
-    @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS add_animelist (IN in_user_id INT, IN in_anime_id INT, IN in_given_score FLOAT)" +
+    @SqlUpdate("DROP PROCEDURE IF EXISTS add_animelist;" +
+            "CREATE PROCEDURE add_animelist (IN in_user_id INT, IN in_anime_id INT, IN in_given_score FLOAT)" +
             "BEGIN" +
             "   INSERT INTO animelist (user_id, anime_id, given_score) VALUES (in_user_id, in_anime_id, in_given_score)" +
             "   ON DUPLICATE KEY UPDATE given_score=in_given_score;" +
