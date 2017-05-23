@@ -21,7 +21,7 @@ public interface DAO extends Closeable {
             "last_recommended TIMESTAMP)")
     void createAnimeTable();
 
-    @SqlUpdate("CREATE VIEW IF NOT EXISTS v_animes AS SELECT id, name, score, last_updated, last_recommended FROM animes")
+    @SqlUpdate("CREATE OR REPLACE v_animes AS SELECT id, name, score, last_updated, last_recommended FROM animes")
     void createAnimesView();
 
     @SqlUpdate("CREATE TABLE IF NOT EXISTS genres(" +
@@ -31,7 +31,7 @@ public interface DAO extends Closeable {
             "FOREIGN KEY (anime_id) REFERENCES animes (id))")
     void createGenresTable();
 
-    @SqlUpdate("CREATE VIEW IF NOT EXISTS v_genres AS SELECT anime_id, genre_id FROM genres")
+    @SqlUpdate("CREATE OR REPLACE v_genres AS SELECT anime_id, genre_id FROM genres")
     void createGenresView();
 
     @SqlUpdate("CREATE TABLE IF NOT EXISTS recommendations(" +
@@ -42,7 +42,7 @@ public interface DAO extends Closeable {
             "FOREIGN KEY (id2) REFERENCES animes (id))")
     void createRecommendationsTable();
 
-    @SqlUpdate("CREATE VIEW IF NOT EXISTS v_recommendations AS SELECT id1, id2 FROM recommendations")
+    @SqlUpdate("CREATE OR REPLACE v_recommendations AS SELECT id1, id2 FROM recommendations")
     void createRecommendationsView();
 
     @SqlUpdate("CREATE TABLE IF NOT EXISTS users(" +
@@ -50,7 +50,7 @@ public interface DAO extends Closeable {
             "name VARCHAR(255) NOT NULL)")
     void createUsersTable();
 
-    @SqlUpdate("CREATE VIEW IF NOT EXISTS v_users AS SELECT id, name FROM users")
+    @SqlUpdate("CREATE OR REPLACE v_users AS SELECT id, name FROM users")
     void createUsersView();
 
     @SqlUpdate("CREATE TABLE IF NOT EXISTS animelist(" +
@@ -62,7 +62,7 @@ public interface DAO extends Closeable {
             "FOREIGN KEY (user_id) REFERENCES users (id))")
     void createAnimelistTable();
 
-    @SqlUpdate("CREATE VIEW IF NOT EXISTS v_animelist AS SELECT user_id, anime_id, given_score FROM animelist")
+    @SqlUpdate("CREATE OR REPLACE v_animelist AS SELECT user_id, anime_id, given_score FROM animelist")
     void createAnimelistView();
 
     @SqlUpdate("CREATE PROCEDURE IF NOT EXISTS add_anime (IN in_id INT, IN in_name VARCHAR(255), IN in_score FLOAT UNSIGNED)" +
