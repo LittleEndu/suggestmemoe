@@ -47,7 +47,7 @@ public interface DAO extends Closeable {
 
     @SqlUpdate("CREATE TABLE IF NOT EXISTS users(" +
             "id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT," +
-            "name VARCHAR(255) NOT NULL UNIQUE KEY)")
+            "name VARCHAR(255) NOT NULL)")
     void createUsersTable();
 
     @SqlUpdate("CREATE VIEW IF NOT EXISTS v_users AS SELECT id, name FROM users")
