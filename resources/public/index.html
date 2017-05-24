@@ -1,5 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Suggest me Moe</title>
     <link rel="stylesheet" href="style.css">
@@ -8,28 +9,28 @@
 <body>
 <div class="vertical container" id="left_container">
     <div class="header" id="search_header">
-        <h3 id="search_title">Search</h3>
-        <input type="text" id="search_box" placeholder="search">
+        <h1 id="search_title"><label for="search_box">Search</label></h1>
+        <input type="text" id="search_box" title="Search" placeholder="search" dir="ltr">
     </div>
-    <div class="animecontainer" id="results_container">
+    <ul class="animecontainer" id="results_container">
 
-    </div>
+    </ul>
 </div>
 <div class="vertical container" id="middle_container">
     <div class="header" id="anime_header">
-        <h3 class="title">Your anime</h3>
+        <h1 class="title">Your anime</h1>
     </div>
-    <div class="animecontainer" id="anime_container">
+    <ul class="animecontainer" id="anime_container">
 
-    </div>
+    </ul>
 </div>
 <div class="vertical container" id="right_container">
     <div class="header" id="suggestion_header">
-        <h3 class="title">Suggestions</h3>
+        <h1 class="title">Suggestions</h1>
     </div>
-    <div class="animecontainer" id="suggestion_container">
+    <ul class="animecontainer" id="suggestion_container">
 
-    </div>
+    </ul>
 </div>
 <script src="moe.js"></script>
 </body>

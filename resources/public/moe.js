@@ -14,12 +14,21 @@
     $("body").css('background-image', 'url(/' + rand + ')');
     var socket = new WebSocket("ws://" + location.host + "/ws");
     socket.onmessage = function (event) {
-        var json = JSON.parse(event.data);
-        suggestions = json;
-        while (suggestionsContainer.children.length!=0){
+        suggestions = JSON.parse(event.data);
+        for (var indexS = 0; indexS < suggestions.length; indexS++) {
+            for (var indexA = 0; indexA < animeList.length; indexA++) {
+                if (suggestions[indexS].id == animeList[indexA].id) {
+                    suggestions.splice(indexS, 1);
+                    break;
+                }
+            }
+        }
+
+
+        while (suggestionsContainer.children.length != 0) {
             suggestionsContainer.removeChild(suggestionsContainer.children[0]);
         }
-        for (var index=0; index<suggestions.length; index++){
+        for (var index = 0; index < suggestions.length; index++) {
             var anime = createAnime(suggestions[index], "sugbutton");
             suggestionsContainer.appendChild(anime)
         }
@@ -93,14 +102,14 @@
         msg.type = "animelist";
         msg.animelist = animeList;
         var json = JSON.stringify(msg);
-        while (socket.readyState==false){
+        while (socket.readyState == false) {
             //wait here until we connect
         }
         socket.send(json);
     }
 
     function createAnime(data, classname) {
-        var animeDiv = document.createElement("div");
+        var animeDiv = document.createElement("li");
         animeDiv.setAttribute("class", "anime");
         animeDiv.setAttribute("data-id", data.id);
 

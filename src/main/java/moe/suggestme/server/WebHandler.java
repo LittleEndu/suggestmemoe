@@ -4,24 +4,17 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HttpString;
 import io.undertow.util.StatusCodes;
 import moe.suggestme.Runner;
-import moe.suggestme.data.DBAnime;
-import moe.suggestme.data.Database;
 import moe.suggestme.mediums.Anime;
 import moe.suggestme.scrapers.AnimeSearchScraper;
 import moe.suggestme.scrapers.NoDocumentException;
-import moe.suggestme.scrapers.UserAnimeListScraper;
-import moe.suggestme.user.RecommendedAnime;
 import moe.suggestme.user.User;
 import moe.suggestme.user.UserAnime;
 import moe.suggestme.user.UserSuggestions;
-import org.apache.logging.log4j.core.util.IOUtils;
 
 import java.io.*;
 import java.text.MessageFormat;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -110,6 +103,9 @@ public class WebHandler {
         }
         while (Arrays.asList(searchResults).contains(null)) {
             int index = Arrays.asList(searchResults).indexOf(null);
+            if (index == -1) {
+                continue;
+            }
             int id = scraper.searchResults.get(index);
             Anime anime;
             try {
@@ -154,24 +150,22 @@ public class WebHandler {
             List<SendSuggestionsHelper> helpers = new ArrayList<>();
             toSend = new UserSuggestions(user);
             helpers.addAll(user.getAnimeList().stream().map(anime -> new SendSuggestionsHelper(exchange, anime, toSend, uninteruptable)).collect(Collectors.toList()));
+            Map<UserAnime, SendSuggestionsHelper> helperMap = new ConcurrentHashMap<>();
             for (SendSuggestionsHelper help:helpers){
+                helperMap.put(help.getAnime(), help);
                 Runner.getServer().getServer().getWorker().execute(help);
             }
             for (UserAnime anime:user.getAnimeList()){
-                Map<UserAnime, Boolean> runningMap = new ConcurrentHashMap<>();
-                for (SendSuggestionsHelper help:helpers){
-                    runningMap.put(help.getAnime(),help.isRunning());
-                }
-                if (!runningMap.get(anime)){
+                if (helperMap.get(anime).isFinished()) {
                     continue;
                 }
-                System.out.println(MessageFormat.format("suggestions({0}) {1} left", name, Collections.frequency(runningMap.values(), true)));
+                System.out.println(MessageFormat.format("suggestions({0}) {1} left", name, Collections.frequency(helperMap.values().stream().map(SendSuggestionsHelper::isFinished).collect(Collectors.toList()), false)));
                 Anime recommendations = Runner.getDatabase().sendRecommendationsHelper(anime.getAnime().getId());
                 try {
                     for (Anime toAdd:recommendations.getRecommends()){
                         toSend.addAnime(toAdd, anime.getGivenScore());
                         for (SendSuggestionsHelper help:helpers){
-                            help.interupt(anime);
+                            help.interrupt(anime);
                         }
                     }
                 } catch (NullPointerException e) {
@@ -188,127 +182,57 @@ public class WebHandler {
         exchange.getResponseSender().send(Runner.getGson().toJson(toSend));
     }
 
-    void sendSuggestionsAfterPost(HttpServerExchange exchange) {
-        Thread uninteruptable = Thread.currentThread();
-        exchange.startBlocking();
-        UserSuggestions toSend;
-        try {
-            Reader r = new BufferedReader(new InputStreamReader(new BufferedInputStream(exchange.getInputStream())));
-            final String[] posted = new String[1];
-            Runner.getServer().getServer().getWorker().execute(() -> {
-                try {
-                    posted[0] = IOUtils.toString(r);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-            System.out.println(posted[0]);
-            User user = Runner.getGson().fromJson(posted[0], User.class);
-            List<SendSuggestionsHelper> helpers = new ArrayList<>();
-            toSend = new UserSuggestions(user);
-            System.out.println(user);
-            helpers.addAll(user.getAnimeList().stream().map(anime -> new SendSuggestionsHelper(exchange, anime, toSend, uninteruptable)).collect(Collectors.toList()));
-            for (SendSuggestionsHelper help : helpers) {
-                Runner.getServer().getServer().getWorker().execute(help);
-            }
-            for (UserAnime anime : user.getAnimeList()) {
-                Map<UserAnime, Boolean> runningMap = new ConcurrentHashMap<>();
-                for (SendSuggestionsHelper help : helpers) {
-                    runningMap.put(help.getAnime(), help.isRunning());
-                }
-                if (!runningMap.get(anime)) {
-                    continue;
-                }
-                System.out.println(MessageFormat.format("suggestions from POST {0} left", Collections.frequency(runningMap.values(), true)));
-                Anime recommendations = Runner.getDatabase().sendRecommendationsHelper(anime.getAnime().getId());
-                try {
-                    for (Anime toAdd : recommendations.getRecommends()) {
-                        toSend.addAnime(toAdd, anime.getGivenScore());
-                        for (SendSuggestionsHelper help : helpers) {
-                            help.interupt(anime);
-                        }
-                    }
-                } catch (NullPointerException e) {
-                    continue;
-                }
-            }
-            toSend.getRecommendedAnimes();
-        } catch (IOException | NoDocumentException e) {
-            exchange.setStatusCode(StatusCodes.BAD_REQUEST);
-            exchange.getResponseSender().send("");
-            return;
-        }
-        exchange.getResponseHeaders().add(HttpString.tryFromString("Content-Type"), "application/json");
-        exchange.getResponseSender().send(Runner.getGson().toJson(toSend));
-    }
-
     class SendSuggestionsHelper implements Runnable{
-        private Thread currentThead = Thread.currentThread();
+        private Thread currentThread = Thread.currentThread();
         HttpServerExchange exchange;
         UserAnime anime;
         UserSuggestions toSend;
-        private boolean isRunning = false;
-        Thread uninteruptable;
+        private boolean finished = false;
+        Thread uninterruptable;
 
-        public SendSuggestionsHelper(HttpServerExchange exchange, UserAnime anime, UserSuggestions toSend, Thread uninteruptable) {
+        public SendSuggestionsHelper(HttpServerExchange exchange, UserAnime anime, UserSuggestions toSend, Thread uninterruptable) {
             this.exchange = exchange;
             this.anime = anime;
             this.toSend = toSend;
-            this.uninteruptable = uninteruptable;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            SendSuggestionsHelper helper = (SendSuggestionsHelper) o;
-
-            return anime.equals(helper.anime);
-
-        }
-
-        @Override
-        public int hashCode() {
-            return anime.hashCode();
+            this.uninterruptable = uninterruptable;
         }
 
         @Override
         public void run() {
-            isRunning = true;
             Anime recommendations;
             try {
                 recommendations = Runner.getDatabase().sendRecommendationsHelper(anime.getAnime().getId());
+                try {
+                    for (Anime toAdd : recommendations.getRecommends()) {
+                        toSend.addAnime(toAdd, anime.getGivenScore());
+                    }
+                } catch (NullPointerException ignored) {
+                }
             } catch (IOException | NoDocumentException e) {
                 exchange.setStatusCode(StatusCodes.BAD_REQUEST);
                 exchange.getResponseSender().send("");
-                isRunning = false;
-                return;
             }
-            try {
-                for (Anime toAdd:recommendations.getRecommends()){
-                    toSend.addAnime(toAdd, anime.getGivenScore());
-                }
-            } catch (NullPointerException e) {
-            }
-            isRunning = false;
+            finished = true;
         }
 
         public UserAnime getAnime() {
             return anime;
         }
 
-        public boolean isRunning(){
-            return isRunning;
+        public boolean isFinished() {
+            return finished;
         }
 
-        public void interupt(UserAnime anime){
-            if (currentThead==uninteruptable) {
+        public void interrupt(UserAnime anime) {
+            if (finished) {
+                return;
+            }
+            if (currentThread == uninterruptable) {
                 return;
             }
             if (this.anime.equals(anime)){
-                currentThead.interrupt();
-                isRunning = false;
+                finished = true;
+                currentThread.interrupt();
             }
         }
     }

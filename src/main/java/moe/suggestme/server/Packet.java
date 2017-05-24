@@ -43,7 +43,11 @@ public class Packet {
         @SuppressWarnings("SuspiciousMethodCalls")
         public void addAnime(AnimeEquitable toAdd, float score) {
             if (recommendations.contains(toAdd)) {
-                RecommendedAnime anime = recommendations.get(recommendations.indexOf(toAdd));
+                int indexOf = recommendations.indexOf(toAdd);
+                if (indexOf == -1) {
+                    return;
+                }
+                RecommendedAnime anime = recommendations.get(indexOf);
                 anime.setWeight(anime.getWeight() + (toAdd.getAnime().getScore() / 10 * score / 10));
             } else {
                 recommendations.add(new RecommendedAnime(toAdd.getAnime(), (toAdd.getAnime().getScore() / 10 * score / 10)));

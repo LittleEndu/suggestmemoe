@@ -178,10 +178,17 @@ public class Database implements Closeable {
             new AnimeRecommendsScraper(id).scrape();
         }
         List<Map<String, Object>> output = listHandle
-                .createQuery("SELECT DISTINCT * FROM (SELECT id1 as id FROM v_recommendations AS vr1 WHERE vr1.id2=:id UNION SELECT id2 as id FROM v_recommendations AS vr2 WHERE vr2.id1=:id) AS alias")
+                .createQuery("SELECT DISTINCT * FROM (SELECT id1 as id FROM v_recommendations AS vr1 WHERE vr1.id2=:id UNION SELECT id2 as id FROM v_recommendations AS vr2 WHERE vr2.id1=:id) AS aa JOIN v_animes as aa2 ON aa.id=aa2.id")
                 .bind("id", id)
                 .list();
-        recommendations.addAll(output.stream().map(entry -> getAnime(Math.toIntExact((long) entry.get("id")))).collect(Collectors.toList()));
+        for (Map<String, Object> entry : output) {
+            List<Map<String, Object>> output2 = listHandle
+                    .createQuery("SELECT genre_id FROM v_genres WHERE anime_id=:id")
+                    .bind("id", entry.get("id"))
+                    .list();
+            List<AnimeGenre> genres = output2.stream().map(entry2 -> AnimeGenre.fromId(Math.toIntExact((long) entry2.get("genre_id")))).collect(Collectors.toList());
+            recommendations.add(new Anime(Math.toIntExact((long) entry.get("id")), (String) entry.get("name"), (float) entry.get("score"), genres));
+        }
         toReturn.setRecommends(recommendations);
         return toReturn;
     }
@@ -189,7 +196,6 @@ public class Database implements Closeable {
     public boolean addAnimeRecommendations(int id) throws IOException {
         DBAnime anime = getDBAnime(id);
         if (anime.lastRecommend > System.currentTimeMillis() - Duration.ofDays(7).getSeconds() * 1000) {
-            System.out.println(MessageFormat.format("Skipping animerecs({0}): fresh enough", id));
             return true;
         }
         System.out.println(MessageFormat.format("Starting animerecs({0})", id));
@@ -200,7 +206,7 @@ public class Database implements Closeable {
             return false;
         }
         Boolean[] done = new Boolean[animeRecs.recommendations.size()];
-        for (int i=0; i<animeRecs.recommendations.size(); i++) {
+        for (int i = 0; i < animeRecs.recommendations.size(); i++) {
             int finalI = i;
             Runner.getServer().getServer().getWorker().execute(() -> {
                 int id2 = animeRecs.recommendations.get(finalI);
@@ -217,7 +223,7 @@ public class Database implements Closeable {
                 done[finalI] = true;
             });
         }
-        while (Arrays.asList(done).contains(false)){
+        while (Arrays.asList(done).contains(false)) {
             System.out.println(MessageFormat.format("recs({0}) {1} recs left", id, Collections.frequency(Arrays.asList(done), false)));
             int index = Arrays.asList(done).indexOf(false);
             int id2 = animeRecs.recommendations.get(index);
