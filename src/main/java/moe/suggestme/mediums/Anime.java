@@ -72,7 +72,8 @@ public class Anime implements AnimeEquitable{
     @Override
     public String toString() {
         return "Anime{" +
-                "name='" + name + '\'' +
+                "id=" + id +
+                ", name='" + name + '\'' +
                 ", recommends=" + recommends +
                 '}';
     }

@@ -14,11 +14,9 @@ import moe.suggestme.user.RecommendedAnime;
 import moe.suggestme.user.User;
 import moe.suggestme.user.UserAnime;
 import moe.suggestme.user.UserSuggestions;
+import org.apache.logging.log4j.core.util.IOUtils;
 
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.*;
@@ -192,19 +190,23 @@ public class WebHandler {
 
     void sendSuggestionsAfterPost(HttpServerExchange exchange) {
         Thread uninteruptable = Thread.currentThread();
-        Reader r = null;
-        try {
-            r = new InputStreamReader(exchange.getInputStream(), "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            exchange.setStatusCode(StatusCodes.BAD_REQUEST);
-            exchange.getResponseSender().send("");
-            return;
-        }
-        User user = Runner.getGson().fromJson(r, User.class);
+        exchange.startBlocking();
         UserSuggestions toSend;
         try {
+            Reader r = new BufferedReader(new InputStreamReader(new BufferedInputStream(exchange.getInputStream())));
+            final String[] posted = new String[1];
+            Runner.getServer().getServer().getWorker().execute(() -> {
+                try {
+                    posted[0] = IOUtils.toString(r);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            System.out.println(posted[0]);
+            User user = Runner.getGson().fromJson(posted[0], User.class);
             List<SendSuggestionsHelper> helpers = new ArrayList<>();
             toSend = new UserSuggestions(user);
+            System.out.println(user);
             helpers.addAll(user.getAnimeList().stream().map(anime -> new SendSuggestionsHelper(exchange, anime, toSend, uninteruptable)).collect(Collectors.toList()));
             for (SendSuggestionsHelper help : helpers) {
                 Runner.getServer().getServer().getWorker().execute(help);

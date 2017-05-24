@@ -97,11 +97,11 @@ input:-ms-input-placeholder {
 }
 
 .animetext {
-    width: 80%;
+    width: 70%;
 }
 
-.animebutton {
-    width: 20%;
+.serbutton, .removebutton, .sugbutton {
+    width: 30%;
     height: 25px;
     background-color: rgba(0, 0, 0, 0.75);
     color: #fff;
