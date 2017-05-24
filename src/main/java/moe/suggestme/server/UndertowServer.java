@@ -22,6 +22,7 @@ public class UndertowServer {
 
     public void start() {
         PathHandler pathHandler = Handlers.path()
+                .addPrefixPath("/suggestpost", webHandler::sendSuggestionsAfterPost)
                 .addPrefixPath("/suggest", webHandler::sendSuggestions)
                 .addPrefixPath("/search", webHandler::sendAnimeSearchResults)
                 .addPrefixPath("/user", webHandler::sendUserAnimeList)

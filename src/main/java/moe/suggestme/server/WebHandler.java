@@ -16,6 +16,9 @@ import moe.suggestme.user.UserAnime;
 import moe.suggestme.user.UserSuggestions;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.*;
@@ -175,6 +178,56 @@ public class WebHandler {
                     }
                 } catch (NullPointerException e) {
                    continue;
+                }
+            }
+            toSend.getRecommendedAnimes();
+        } catch (IOException | NoDocumentException e) {
+            exchange.setStatusCode(StatusCodes.BAD_REQUEST);
+            exchange.getResponseSender().send("");
+            return;
+        }
+        exchange.getResponseHeaders().add(HttpString.tryFromString("Content-Type"), "application/json");
+        exchange.getResponseSender().send(Runner.getGson().toJson(toSend));
+    }
+
+    void sendSuggestionsAfterPost(HttpServerExchange exchange) {
+        Thread uninteruptable = Thread.currentThread();
+        Reader r = null;
+        try {
+            r = new InputStreamReader(exchange.getInputStream(), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            exchange.setStatusCode(StatusCodes.BAD_REQUEST);
+            exchange.getResponseSender().send("");
+            return;
+        }
+        User user = Runner.getGson().fromJson(r, User.class);
+        UserSuggestions toSend;
+        try {
+            List<SendSuggestionsHelper> helpers = new ArrayList<>();
+            toSend = new UserSuggestions(user);
+            helpers.addAll(user.getAnimeList().stream().map(anime -> new SendSuggestionsHelper(exchange, anime, toSend, uninteruptable)).collect(Collectors.toList()));
+            for (SendSuggestionsHelper help : helpers) {
+                Runner.getServer().getServer().getWorker().execute(help);
+            }
+            for (UserAnime anime : user.getAnimeList()) {
+                Map<UserAnime, Boolean> runningMap = new ConcurrentHashMap<>();
+                for (SendSuggestionsHelper help : helpers) {
+                    runningMap.put(help.getAnime(), help.isRunning());
+                }
+                if (!runningMap.get(anime)) {
+                    continue;
+                }
+                System.out.println(MessageFormat.format("suggestions from POST {0} left", Collections.frequency(runningMap.values(), true)));
+                Anime recommendations = Runner.getDatabase().sendRecommendationsHelper(anime.getAnime().getId());
+                try {
+                    for (Anime toAdd : recommendations.getRecommends()) {
+                        toSend.addAnime(toAdd, anime.getGivenScore());
+                        for (SendSuggestionsHelper help : helpers) {
+                            help.interupt(anime);
+                        }
+                    }
+                } catch (NullPointerException e) {
+                    continue;
                 }
             }
             toSend.getRecommendedAnimes();
