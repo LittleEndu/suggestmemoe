@@ -1,1 +1,1 @@
-Repo for future anime suggestion site.
+See [suggestime-moe](https://github.com/LittleEndu/suggestme-moe)
